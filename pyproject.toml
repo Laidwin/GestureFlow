@@ -1,0 +1,31 @@
+[project]
+name = "hand-gesture-recognition"
+version = "1.0.0"
+description = "Real-time hand gesture recognition using MediaPipe and scikit-learn"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dependencies = [
+    "protobuf==4.25.3",
+    "numpy==1.26.4",
+    "mediapipe==0.10.14",
+    "opencv-python==4.10.0.84",
+    "pandas>=2.2.0",
+    "scikit-learn>=1.4.0",
+    "seaborn>=0.13.0",
+    "joblib>=1.3.0",
+]
+
+[project.optional-dependencies]
+control = ["pyautogui>=0.9.54"]
+
+[project.scripts]
+gesture-capture = "hand_gesture.capture:main"
+gesture-normalize = "hand_gesture.normalize:main"
+gesture-fuse = "hand_gesture.fuse:main"
+gesture-train = "hand_gesture.train:main"
+gesture-predict = "hand_gesture.predict:main"
+gesture-visualize = "hand_gesture.visualize:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

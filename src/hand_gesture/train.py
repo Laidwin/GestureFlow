@@ -50,7 +50,7 @@ def train(data_dir: str = "data/fused", model_dir: str = "models"):
     X_parts, y_parts = [], []
     for file in files:
         samples = load_samples_from_file(str(file))
-        label = file.stem  # e.g. "CloseFist_normalized"
+        label = file.stem.removesuffix("_normalized")  # e.g. "CloseFist"
         X_parts.append(samples)
         y_parts.extend([label] * len(samples))
 

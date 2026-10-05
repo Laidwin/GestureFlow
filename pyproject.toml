@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Real-time hand gesture recognition using MediaPipe and scikit-learn"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "protobuf==4.25.3",
     "numpy==1.26.4",
@@ -26,6 +26,11 @@ gesture-fuse = "hand_gesture.fuse:main"
 gesture-train = "hand_gesture.train:main"
 gesture-predict = "hand_gesture.predict:main"
 gesture-visualize = "hand_gesture.visualize:main"
+gesture-evaluate = "hand_gesture.evaluate:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

@@ -1,210 +1,157 @@
-# Hand Gesture Recognition
+<div align="center">
 
-Real-time hand gesture recognition using **MediaPipe** for hand landmark detection and a **Random Forest** classifier (scikit-learn) for gesture classification.
+# GestureFlow
 
-## Overview
+**Your webcam recognizes your hand gestures in real time.**
 
-This project implements a complete pipeline to collect, process, and classify hand gestures from a webcam feed. It uses [MediaPipe Hands](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker) to extract 21 3D landmarks per hand, then applies custom normalization (rotation, scaling, feature engineering) to make recognition invariant to hand position, size, and orientation.
+**5 gestures** · **99.5 % accuracy on people the model never saw** · **runs on a regular laptop webcam**
 
-The system recognizes **5 gestures** (right hand):
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-| Gesture    | Description  |
-| ---------- | ------------ |
-| CloseFist  | Closed fist  |
-| OpenHand   | Open hand    |
-| ThumbsUp   | Thumbs up    |
-| IndexUp    | Index finger |
-| OkSign     | OK sign      |
+</div>
 
-## Pipeline
+---
 
-``` text
-                +-----------+
-                |  Webcam   |
-                +-----+-----+
-                      |
-                      v
-            +-------------------+
-            |   1. Capture      |   Extract 21 3D landmarks per frame
-            |   (MediaPipe)     |   via MediaPipe Hands
-            +--------+----------+
-                     |
-                     v
-            +-------------------+
-            |  2. Normalize     |   Scale, rotate to canonical pose,
-            |                   |   compute geometric features
-            +--------+----------+
-                     |
-                     v
-            +-------------------+
-            |  3. Fuse          |   Merge per-person files into
-            |                   |   per-gesture datasets
-            +--------+----------+
-                     |
-                     v
-            +-------------------+
-            |  4. Train         |   Train RandomForest classifier
-            |  (scikit-learn)   |   on 78-dim feature vectors
-            +--------+----------+
-                     |
-                     v
-            +-------------------+
-            |  5. Predict       |   Real-time classification
-            |                   |   from webcam feed
-            +-------------------+
-```
+## What it does
 
-### Step-by-step
+Show your right hand to the webcam. GestureFlow finds the 21 key points of your
+hand (fingertips, joints, wrist), works out the shape they form, and tells you which
+gesture you are making, live.
 
-1. **Capture** (`gesture-capture`) — Opens the webcam, detects the hand using MediaPipe, and saves the 21 world-space 3D landmarks to a JSON file each time you press SPACE.
+| ✋ Open hand | ✊ Closed fist | 👍 Thumbs up | ☝️ Index up | 👌 OK sign |
+| :---------: | :-----------: | :----------: | :---------: | :--------: |
 
-2. **Normalize** (`gesture-normalize`) — For each sample, normalizes the landmarks to be invariant to hand position, scale, and rotation. Also computes 15 additional geometric features (finger angles, finger lengths, inter-finger distances). See [Normalization](docs/normalization.md) for details.
+It works whatever your hand size, its position in the frame or its angle.
 
-3. **Fuse** (`gesture-fuse`) — Merges all per-person normalized files into a single file per gesture (e.g. all `CloseFist_*.json` into `CloseFist_normalized.json`).
+---
 
-4. **Train** (`gesture-train`) — Loads the fused data, builds a 78-dimensional feature vector per sample (21 landmarks x 3 coords + 15 features), trains a Random Forest classifier (200 trees), and saves the model + scaler as a `.pkl` file.
+## How it works
 
-5. **Predict** (`gesture-predict`) — Opens the webcam, processes each frame through MediaPipe + normalization + classifier, and displays the predicted gesture with confidence score in real time.
+1. **Detect the hand.** Google's MediaPipe finds the 21 key points of the hand in each video frame.
+2. **Standardize it.** The points are rescaled and rotated into the same reference position,
+   so a small hand far away and a large hand up close look the same to the model.
+   We also measure finger angles and distances.
+3. **Recognize the gesture.** A machine learning model (Random Forest) trained on
+   our own recordings picks the most likely gesture.
 
-## Installation
+---
 
-**Prerequisites:** Python >= 3.12, a webcam, and [uv](https://docs.astral.sh/uv/).
+## Results
 
-``` bash
-git clone https://github.com/<your-username>/hand-gesture-recognition.git
-cd hand-gesture-recognition
+We recorded **735 hand poses** from 4 people. To check that GestureFlow works on
+people it has never seen, we trained the model on 3 people and tested it on the 4th,
+then repeated for each person.
+
+<div align="center">
+  <img src="docs/assets/confusion-matrix.png" alt="Confusion matrix: almost every gesture is recognized correctly" width="560">
+</div>
+
+Only 4 poses out of 735 were misread. Reproduce it with `uv run gesture-evaluate`.
+
+---
+
+## Try it
+
+Requires a webcam, [uv](https://docs.astral.sh/uv/) and Python 3.12 (uv installs it if needed).
+
+```bash
+git clone https://github.com/Laidwin/GestureFlow.git
+cd GestureFlow
 uv sync
-```
-
-## Usage
-
-### Quick start (use the pre-trained model)
-
-``` bash
-# Run real-time prediction with the included model
+uv run gesture-train      # trains the model on the included recordings, a few seconds
 uv run gesture-predict
 ```
 
-Press **ESC** to quit.
+Show your right hand to the camera. Press **Esc** to quit.
 
-### Full pipeline (collect your own data)
+---
 
-``` bash
-# 1. Capture gesture samples (repeat for each gesture + person)
+## The project
+
+GestureFlow was built at **IMT Mines Alès** as part of the *Computer Vision*
+specialization module, by a team of four:
+
+- Jules
+- Martin
+- Matthias
+- [William Machecourt](https://github.com/Laidwin)
+
+---
+
+## For developers
+
+<details>
+<summary><b>Train your own model or add gestures</b></summary>
+
+<br>
+
+```bash
+# 1. Record samples (press Space to save a pose)
 uv run gesture-capture --gesture CloseFist --name Alice
-uv run gesture-capture --gesture OpenHand --name Alice
-# ... repeat for all 5 gestures and all contributors
 
-# 2. Normalize raw data
+# 2. Standardize the recordings
 uv run gesture-normalize
 
-# 3. Fuse normalized data by gesture
+# 3. Merge them into one file per gesture
 uv run gesture-fuse
 
-# 4. Train the model (displays confusion matrix)
+# 4. Train the model
 uv run gesture-train
 
-# 5. Run real-time prediction
+# 5. Check it on people it never saw
+uv run gesture-evaluate
+
+# 6. Try it live
 uv run gesture-predict
 ```
 
-### Visualization
+To see a recorded hand in 3D:
 
-``` bash
-# Visualize a hand sample in 3D (matplotlib interactive plot)
+```bash
 uv run gesture-visualize data/normalized/CloseFist_William_normalized.json --index 0
 ```
 
-### CLI reference
+Every command accepts `--help`. To add a new gesture, follow
+[Adding gestures](docs/adding-gestures.md).
 
-Each command supports `--help` for full usage details.
+</details>
 
-| Command              | Description                                  | Key options                             |
-| -------------------- | -------------------------------------------- | --------------------------------------- |
-| `gesture-capture`    | Record hand landmarks from webcam            | `--gesture`, `--name`, `--output-dir`   |
-| `gesture-normalize`  | Normalize raw JSON files                     | `--input-dir`, `--output-dir`           |
-| `gesture-fuse`       | Merge normalized files by gesture            | `--gestures`, `--input-dir`             |
-| `gesture-train`      | Train the RandomForest model                 | `--data-dir`, `--model-dir`             |
-| `gesture-predict`    | Real-time gesture recognition                | `--model`                               |
-| `gesture-visualize`  | 3D plot of hand landmarks                    | `json_file`, `--index`                  |
+<details>
+<summary><b>Technical details</b></summary>
 
-### Keyboard shortcuts
+<br>
 
-| Key       | Context   | Action                    |
-| --------- | --------- | ------------------------- |
-| **SPACE** | Capture   | Save current hand pose    |
-| **ESC**   | Any       | Quit the application      |
+- **Hand detection:** MediaPipe Hands, 21 landmarks in 3D world coordinates
+- **Features:** 78 values per sample (63 normalized coordinates and 15 geometric features)
+- **Model:** Random Forest, 200 trees, with feature scaling
+- **Evaluation:** leave-one-person-out cross-validation (`gesture-evaluate`)
+- **Stack:** Python, MediaPipe, OpenCV, NumPy, scikit-learn
 
-## Project structure
+More in the documentation:
 
-``` text
-.
-├── src/hand_gesture/          # Python package
-│   ├── __init__.py
-│   ├── capture.py             # Webcam data collection
-│   ├── normalize.py           # Landmark normalization + feature extraction
-│   ├── fuse.py                # Merge per-person files into per-gesture datasets
-│   ├── train.py               # Model training & evaluation
-│   ├── predict.py             # Real-time gesture prediction
-│   └── visualize.py           # 3D landmark visualization (matplotlib)
-├── data/
-│   ├── raw/                   # Raw captured JSON (21 landmarks x 3D coords)
-│   ├── normalized/            # Normalized JSON (21 landmarks + 15 features)
-│   └── fused/                 # One merged file per gesture
-├── models/                    # Trained model + scaler (.pkl)
-├── docs/                      # Documentation
-│   ├── normalization.md       # Normalization algorithm details
-│   ├── data-format.md         # JSON data format specification
-│   └── adding-gestures.md     # How to add new gestures
-├── pyproject.toml
-├── LICENSE
-└── README.md
+- [Normalization algorithm](docs/normalization.md)
+- [Data format](docs/data-format.md)
+- [Adding gestures](docs/adding-gestures.md)
+
+</details>
+
+<details>
+<summary><b>Project structure</b></summary>
+
+<br>
+
+```text
+src/hand_gesture/   capture, normalize, fuse, train, evaluate, predict, visualize
+data/               raw, normalized and fused recordings
+models/             trained model (created by gesture-train)
+docs/               documentation
 ```
 
-## Feature vector
+</details>
 
-Each hand sample is represented as a **78-dimensional** vector:
+---
 
-| Dimensions | Content                                                                 |
-| ---------- | ----------------------------------------------------------------------- |
-| 0-62       | 21 landmarks x 3 coordinates (x, y, z), rotation-normalized             |
-| 63-67      | 5 finger curl angles (thumb, index, middle, ring, pinky)                |
-| 68-72      | 5 finger lengths (tip-to-base distance)                                 |
-| 73         | Thumb-index angle                                                       |
-| 74         | Thumb-index distance                                                    |
-| 75-77      | Thumb-index relative position (delta x, y, z)                           |
-
-See [docs/normalization.md](docs/normalization.md) for the full normalization algorithm.
-
-## Dataset
-
-The included dataset was collected by **4 contributors** (Jules, Martin, Matthias, William), right hand only. Each person captured multiple sessions per gesture, totaling several hundred samples per class. Data is stored as JSON files containing MediaPipe [world landmarks](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker#world_landmarks) (3D coordinates in meters, relative to the hand's geometric center).
-
-## Model
-
-- **Algorithm:** Random Forest (200 trees, no max depth)
-- **Preprocessing:** StandardScaler on the 78-dim feature vector
-- **Train/test split:** 80/20, random_state=42
-- **Output:** `models/hand_gesture_rf.pkl` (pickled tuple of `(RandomForestClassifier, StandardScaler)`)
-
-## Documentation
-
-- [Normalization algorithm](docs/normalization.md) — Detailed explanation of the scale/rotation normalization and feature engineering
-- [Data format specification](docs/data-format.md) — JSON schema for raw, normalized, and fused data files
-- [Adding new gestures](docs/adding-gestures.md) — Step-by-step guide to extend the system with custom gestures
-
-## Requirements
-
-| Dependency      | Version    | Purpose                          |
-| --------------- | ---------- | -------------------------------- |
-| Python          | >= 3.12    | Runtime                          |
-| MediaPipe       | 0.10.14    | Hand landmark detection          |
-| OpenCV          | 4.10.0     | Webcam capture & display         |
-| NumPy           | 1.26.4     | Numerical operations             |
-| scikit-learn    | >= 1.4.0   | RandomForest classifier          |
-| seaborn         | >= 0.13.0  | Confusion matrix visualization   |
-| joblib          | >= 1.3.0   | Model serialization              |
-
-## License
-
-[MIT](LICENSE)
+<div align="center">
+<sub>MIT License · see <a href="LICENSE">LICENSE</a></sub>
+</div>
